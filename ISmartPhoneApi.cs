@@ -240,5 +240,8 @@ namespace SmartphoneExampleApps.Data
             Action<GameTime>? onUpdateHudScreen = null,
             bool landscape = false
         );
+
+        bool IsHudPinned();
+        string? GetPinnedAppId();
     }
 }

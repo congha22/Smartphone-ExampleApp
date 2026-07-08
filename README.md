@@ -203,6 +203,48 @@ Your screen drawing code must be encapsulated in a method that can draw independ
 
 *Refer to [PortraitAppScreen.cs](PortraitApp/PortraitAppScreen.cs) or [LandscapeAppScreen.cs](LandscapeApp/LandscapeAppScreen.cs) for full working implementations.*
 
+### Step 3: Screen Resume (Back to Last Screen)
+
+When a player launches your app, they might have previously left it running in the background/HUD pin mode. To prevent resetting their progress (e.g. losing a chat thread or custom menu position), you should query the API's pinning state and reuse the cached screen instance.
+
+Add `IsHudPinned()` and `GetPinnedAppId()` to your copy of `ISmartPhoneApi.cs`:
+```csharp
+bool IsHudPinned();
+string? GetPinnedAppId();
+```
+
+Then in your app's entry-point launch method, check if it's launching as a resume:
+```csharp
+private void OpenMyCustomApp()
+{
+    if (!Context.IsWorldReady || this.SmartphoneApi == null) return;
+
+    // Build the composite app ID used by the framework: "OwnerModId::AppId"
+    string compositeId = $"{this.ModManifest.UniqueID}::myAppId";
+    
+    bool resume = this.SmartphoneApi.IsHudPinned() && string.Equals(this.SmartphoneApi.GetPinnedAppId(), compositeId);
+    
+    if (!resume || this.activeScreen == null)
+    {
+        // Instantiate a fresh screen if not resuming or activeScreen was lost
+        this.activeScreen = new MyCustomAppScreen(this.SmartphoneApi);
+    }
+    
+    Game1.activeClickableMenu = this.activeScreen;
+}
+```
+
+#### Safe Update Ticking (Double-Update Bypass)
+When your app screen is open as the active menu, the game's menu loop automatically updates it. To prevent calling `update()` twice per frame, bypass background updating inside your `onUpdateHudScreen` callback when the screen is the open menu:
+```csharp
+onUpdateHudScreen: (gameTime) => {
+    if (Game1.activeClickableMenu == this.activeScreen)
+        return;
+        
+    this.activeScreen?.update(gameTime);
+}
+```
+
 ---
 
 ## 5. Extending the Contacts App

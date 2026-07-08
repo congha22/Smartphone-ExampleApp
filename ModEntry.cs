@@ -288,10 +288,13 @@ namespace SmartphoneExampleApps
         {
             if (!Context.IsWorldReady || this.smartphoneApi == null) return;
  
-            // Open the portrait screen.
-            this.activePortraitScreen = new PortraitApp.PortraitAppScreen(
-                api:             this.smartphoneApi,
-                onBack:          () => this.smartphoneApi.OpenPhoneHomeScreen());
+            bool resume = this.smartphoneApi.IsHudPinned() && string.Equals(this.smartphoneApi.GetPinnedAppId(), $"{this.ModManifest.UniqueID}::{PortraitAppId}");
+            if (!resume || this.activePortraitScreen == null)
+            {
+                this.activePortraitScreen = new PortraitApp.PortraitAppScreen(
+                    api:             this.smartphoneApi,
+                    onBack:          () => this.smartphoneApi.OpenPhoneHomeScreen());
+            }
             this.activeLandscapeScreen = null;
             Game1.activeClickableMenu = this.activePortraitScreen;
         }
@@ -341,9 +344,13 @@ namespace SmartphoneExampleApps
         {
             if (!Context.IsWorldReady || this.smartphoneApi == null) return;
  
-            this.activeLandscapeScreen = new LandscapeApp.LandscapeAppScreen(
-                api:    this.smartphoneApi,
-                onBack: () => this.smartphoneApi.OpenPhoneHomeScreen());
+            bool resume = this.smartphoneApi.IsHudPinned() && string.Equals(this.smartphoneApi.GetPinnedAppId(), $"{this.ModManifest.UniqueID}::{LandscapeAppId}");
+            if (!resume || this.activeLandscapeScreen == null)
+            {
+                this.activeLandscapeScreen = new LandscapeApp.LandscapeAppScreen(
+                    api:    this.smartphoneApi,
+                    onBack: () => this.smartphoneApi.OpenPhoneHomeScreen());
+            }
             this.activePortraitScreen = null;
             Game1.activeClickableMenu = this.activeLandscapeScreen;
         }
@@ -452,6 +459,8 @@ namespace SmartphoneExampleApps
 
         private void UpdatePortraitPassiveHud(GameTime time)
         {
+            if (Game1.activeClickableMenu == this.activePortraitScreen)
+                return;
             this.activePortraitScreen?.update(time);
         }
 
@@ -474,6 +483,8 @@ namespace SmartphoneExampleApps
 
         private void UpdateLandscapePassiveHud(GameTime time)
         {
+            if (Game1.activeClickableMenu == this.activeLandscapeScreen)
+                return;
             this.activeLandscapeScreen?.update(time);
         }
 
