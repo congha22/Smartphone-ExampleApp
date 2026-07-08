@@ -44,8 +44,6 @@ namespace SmartphoneExampleApps.PortraitApp
         /// <summary>Called when the user presses Back/Escape to return to the home screen.</summary>
         private readonly Action onBack;
 
-        private readonly Func<int> getContactCount;
-
         // -------------------------------------------------------------------------
         // Page 2 – Multiline Editable TextBox
         // -------------------------------------------------------------------------
@@ -154,20 +152,17 @@ namespace SmartphoneExampleApps.PortraitApp
 
         /// <param name="api">Smartphone framework API reference.</param>
         /// <param name="onBack">Callback to close this screen and return to home.</param>
-        /// <param name="getContactCount">Delegate returning the current contactable NPC count.</param>
         /// <param name="initialPopup">Optional message to show immediately when the screen opens.</param>
         /// <param name="initialPage">Which page to open on (default 0).</param>
         public PortraitAppScreen(
             ISmartPhoneApi api,
             Action onBack,
-            Func<int> getContactCount,
             string? initialPopup = null,
             int    initialPage   = 0)
             : base()
         {
             this.api             = api;
             this.onBack          = onBack;
-            this.getContactCount = getContactCount;
             this.currentPage     = initialPage;
 
             // Seed the popup if something needs to be shown right away
@@ -296,7 +291,7 @@ namespace SmartphoneExampleApps.PortraitApp
             {
                 "Send Notification",
                 "Select 1 Photo",
-                "Count Contactable NPCs",
+                "Trigger Dummy Action",
             };
             var colors = new[]
             {
@@ -318,9 +313,8 @@ namespace SmartphoneExampleApps.PortraitApp
 
         private void ResetBall()
         {
-            Rectangle c    = this.ContentRect;
             this.ballRadius   = Scale(18);
-            this.ballPos      = new Vector2(c.Center.X, c.Center.Y);
+            this.ballPos      = new Vector2(this.contentWidth / 2f, this.contentHeight / 2f);
             this.ballVelocity = new Vector2(Scale(3), Scale(2));
         }
 
@@ -383,17 +377,16 @@ namespace SmartphoneExampleApps.PortraitApp
             // -- Bouncing ball on page 3 --
             if (this.currentPage == 2)
             {
-                Rectangle c = this.ContentRect;
                 this.ballPos += this.ballVelocity;
 
-                if (this.ballPos.X - this.ballRadius < c.Left)
-                { this.ballPos.X = c.Left + this.ballRadius; this.ballVelocity.X = Math.Abs(this.ballVelocity.X); Game1.playSound("drumkit6"); }
-                if (this.ballPos.X + this.ballRadius > c.Right)
-                { this.ballPos.X = c.Right - this.ballRadius; this.ballVelocity.X = -Math.Abs(this.ballVelocity.X); Game1.playSound("drumkit6"); }
-                if (this.ballPos.Y - this.ballRadius < c.Top)
-                { this.ballPos.Y = c.Top + this.ballRadius; this.ballVelocity.Y = Math.Abs(this.ballVelocity.Y); Game1.playSound("drumkit6"); }
-                if (this.ballPos.Y + this.ballRadius > c.Bottom)
-                { this.ballPos.Y = c.Bottom - this.ballRadius; this.ballVelocity.Y = -Math.Abs(this.ballVelocity.Y); Game1.playSound("drumkit6"); }
+                if (this.ballPos.X - this.ballRadius < 0)
+                { this.ballPos.X = this.ballRadius; this.ballVelocity.X = Math.Abs(this.ballVelocity.X); Game1.playSound("drumkit6"); }
+                if (this.ballPos.X + this.ballRadius > this.contentWidth)
+                { this.ballPos.X = this.contentWidth - this.ballRadius; this.ballVelocity.X = -Math.Abs(this.ballVelocity.X); Game1.playSound("drumkit6"); }
+                if (this.ballPos.Y - this.ballRadius < 0)
+                { this.ballPos.Y = this.ballRadius; this.ballVelocity.Y = Math.Abs(this.ballVelocity.Y); Game1.playSound("drumkit6"); }
+                if (this.ballPos.Y + this.ballRadius > this.contentHeight)
+                { this.ballPos.Y = this.contentHeight - this.ballRadius; this.ballVelocity.Y = -Math.Abs(this.ballVelocity.Y); Game1.playSound("drumkit6"); }
             }
         }
 
@@ -454,6 +447,42 @@ namespace SmartphoneExampleApps.PortraitApp
         // -------------------------------------------------------------------------
         // Page rendering
         // -------------------------------------------------------------------------
+
+        public void DrawScreenContent(SpriteBatch b, Rectangle content)
+        {
+            float oldScale = this.phoneUiScale;
+            int oldX = this.xPositionOnScreen;
+            int oldY = this.yPositionOnScreen;
+
+            if (Math.Abs(this.phoneUiScale - 1f) > 0.001f)
+            {
+                this.phoneUiScale = 1f;
+            }
+
+            this.xPositionOnScreen = -this.phoneContentOffsetX;
+            this.yPositionOnScreen = -this.phoneContentOffsetY;
+
+            this.RefreshLayout();
+
+            try
+            {
+                // 1. Draw background
+                if (this.phoneBackgroundTexture != null && !this.phoneBackgroundTexture.IsDisposed)
+                    b.Draw(this.phoneBackgroundTexture, content, Color.White);
+                else
+                    b.Draw(Game1.staminaRect, content, new Color(20, 24, 36));
+
+                // 2. Draw pages
+                this.DrawPages(b, content);
+            }
+            finally
+            {
+                this.phoneUiScale = oldScale;
+                this.xPositionOnScreen = oldX;
+                this.yPositionOnScreen = oldY;
+                this.RefreshLayout();
+            }
+        }
 
         private void DrawPages(SpriteBatch b, Rectangle content)
         {
@@ -613,20 +642,21 @@ namespace SmartphoneExampleApps.PortraitApp
                 new Vector2(pageRect.Center.X - hSz.X / 2f, pageRect.Y + Scale(8)),
                 Color.Cyan * 0.85f, 0f, Vector2.Zero, hs, SpriteEffects.None, 1f);
 
-            int shiftX = pageRect.X - this.ContentRect.X;
             int   r    = (int)this.ballRadius;
             Color ball = new(
                 (int)(Math.Sin(this.bounceTimer * 2.0f) * 127 + 128),
                 (int)(Math.Sin(this.bounceTimer * 3.1f + 2f) * 127 + 128),
                 (int)(Math.Sin(this.bounceTimer * 4.7f + 4f) * 127 + 128));
 
-            // Ball body
+            // Ball body is drawn relative to pageRect top-left corner
+            Vector2 drawPos = new Vector2(pageRect.X, pageRect.Y) + this.ballPos;
+
             b.Draw(Game1.staminaRect,
-                new Rectangle((int)(this.ballPos.X + shiftX - r), (int)(this.ballPos.Y - r), r * 2, r * 2),
+                new Rectangle((int)(drawPos.X - r), (int)(drawPos.Y - r), r * 2, r * 2),
                 ball);
             // Reflection highlight
             b.Draw(Game1.staminaRect,
-                new Rectangle((int)(this.ballPos.X + shiftX - r / 2), (int)(this.ballPos.Y - r + 3), r / 2, r / 2),
+                new Rectangle((int)(drawPos.X - r / 2), (int)(drawPos.Y - r + 3), r / 2, r / 2),
                 Color.White * 0.35f);
         }
 
@@ -927,7 +957,7 @@ namespace SmartphoneExampleApps.PortraitApp
             {
                 case 0: this.Action_SendNotification(); break;
                 case 1: this.Action_SelectPhoto();      break;
-                case 2: this.Action_CountContacts();    break;
+                case 2: this.Action_DummyAction();      break;
             }
         }
 
@@ -960,7 +990,6 @@ namespace SmartphoneExampleApps.PortraitApp
             // Capture references needed inside the closure.
             var capturedApi          = this.api;
             var capturedOnBack       = this.onBack;
-            var capturedGetContacts  = this.getContactCount;
 
             this.api.RetrievePhotos(
                 limit:       1,
@@ -976,21 +1005,17 @@ namespace SmartphoneExampleApps.PortraitApp
                     Game1.activeClickableMenu = new PortraitAppScreen(
                         api:            capturedApi,
                         onBack:         capturedOnBack,
-                        getContactCount: capturedGetContacts,
                         initialPopup:   popup,
                         initialPage:    1);   // return to page 2 (index 1)
                 });
         }
 
         /// <summary>
-        /// Action 2: Read the current contactable NPC count.
-        /// ModEntry subscribes to api.ContactableNpcsChanged and maintains the list.
-        /// We receive it here via the getContactCount delegate.
+        /// Action 2: Trigger a dummy action.
         /// </summary>
-        private void Action_CountContacts()
+        private void Action_DummyAction()
         {
-            int count = this.getContactCount();
-            this.ShowPopup($"📇 You have {count} contactable NPC{(count == 1 ? "" : "s")}.");
+            this.ShowPopup("📇 Dummy action triggered! (Contacts event was deprecated)");
         }
 
         // -------------------------------------------------------------------------

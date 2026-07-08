@@ -290,9 +290,8 @@ namespace SmartphoneExampleApps.LandscapeApp
 
         private void ResetBall()
         {
-            Rectangle lc  = this.LandscapeContentRect;
             this.ballRadius = Scale(16);
-            this.ballPos    = new Vector2(lc.Center.X, lc.Center.Y);
+            this.ballPos    = new Vector2(this.contentHeight / 2f, this.contentWidth / 2f);
             this.ballVel    = new Vector2(Scale(3), Scale(2));
         }
 
@@ -357,30 +356,29 @@ namespace SmartphoneExampleApps.LandscapeApp
             // Bounce ball on page 3
             if (this.currentPage == 2)
             {
-                Rectangle lc = this.LandscapeContentRect;
                 this.ballPos += this.ballVel;
 
-                if (this.ballPos.X - this.ballRadius < lc.Left)
+                if (this.ballPos.X - this.ballRadius < 0)
                 {
-                    this.ballPos.X = lc.Left + this.ballRadius;
+                    this.ballPos.X = this.ballRadius;
                     this.ballVel.X = Math.Abs(this.ballVel.X);
                     Game1.playSound("drumkit6");
                 }
-                if (this.ballPos.X + this.ballRadius > lc.Right)
+                if (this.ballPos.X + this.ballRadius > this.contentHeight)
                 {
-                    this.ballPos.X = lc.Right - this.ballRadius;
+                    this.ballPos.X = this.contentHeight - this.ballRadius;
                     this.ballVel.X = -Math.Abs(this.ballVel.X);
                     Game1.playSound("drumkit6");
                 }
-                if (this.ballPos.Y - this.ballRadius < lc.Top)
+                if (this.ballPos.Y - this.ballRadius < 0)
                 {
-                    this.ballPos.Y = lc.Top + this.ballRadius;
+                    this.ballPos.Y = this.ballRadius;
                     this.ballVel.Y = Math.Abs(this.ballVel.Y);
                     Game1.playSound("drumkit6");
                 }
-                if (this.ballPos.Y + this.ballRadius > lc.Bottom)
+                if (this.ballPos.Y + this.ballRadius > this.contentWidth)
                 {
-                    this.ballPos.Y = lc.Bottom - this.ballRadius;
+                    this.ballPos.Y = this.contentWidth - this.ballRadius;
                     this.ballVel.Y = -Math.Abs(this.ballVel.Y);
                     Game1.playSound("drumkit6");
                 }
@@ -486,6 +484,59 @@ namespace SmartphoneExampleApps.LandscapeApp
         // Page rendering
         // -------------------------------------------------------------------------
 
+        public void DrawScreenContent(SpriteBatch b, Rectangle content)
+        {
+            float oldScale = this.phoneUiScale;
+            int oldX = this.xPositionOnScreen;
+            int oldY = this.yPositionOnScreen;
+
+            if (Math.Abs(this.phoneUiScale - 1f) > 0.001f)
+            {
+                this.phoneUiScale = 1f;
+            }
+
+            this.xPositionOnScreen = -this.phoneContentOffsetY;
+            this.yPositionOnScreen = this.contentHeight - this.phoneFrameWidth + this.phoneContentOffsetX;
+
+            this.RefreshLayout();
+
+            try
+            {
+                Rectangle lc = this.LandscapeContentRect;
+                int lx = lc.X, ly = lc.Y, lw = lc.Width, lh = lc.Height;
+
+                if (this.phoneBackgroundTexture != null && !this.phoneBackgroundTexture.IsDisposed)
+                {
+                    float sx = (float)this.contentWidth  / this.phoneBackgroundTexture.Width;
+                    float sy = (float)this.contentHeight / this.phoneBackgroundTexture.Height;
+                    b.Draw(
+                        this.phoneBackgroundTexture,
+                        new Vector2(lx, ly + lh),
+                        null,
+                        Color.White,
+                        -MathHelper.PiOver2,
+                        Vector2.Zero,
+                        new Vector2(sx, sy),
+                        SpriteEffects.None,
+                        0f);
+                }
+                else
+                {
+                    b.Draw(Game1.staminaRect, new Rectangle(lx, ly, lw, lh), new Color(20, 24, 36));
+                }
+
+                // Draw pages
+                this.DrawPages(b, lc);
+            }
+            finally
+            {
+                this.phoneUiScale = oldScale;
+                this.xPositionOnScreen = oldX;
+                this.yPositionOnScreen = oldY;
+                this.RefreshLayout();
+            }
+        }
+
         private void DrawPages(SpriteBatch b, Rectangle lc)
         {
             float totalScrollX = (this.currentPage + this.pageScrollX) * lc.Width;
@@ -572,7 +623,6 @@ namespace SmartphoneExampleApps.LandscapeApp
         private void DrawPage3_Ball(SpriteBatch b, Rectangle pageRect, Rectangle lc)
         {
             SpriteFont font = Game1.dialogueFont;
-            int shiftX = pageRect.X - lc.X;
 
             b.Draw(Game1.staminaRect, pageRect, new Color(10, 15, 30) * 0.7f);
 
@@ -589,11 +639,14 @@ namespace SmartphoneExampleApps.LandscapeApp
                 (int)(Math.Sin(this.bounceTimer * 3f + 2f) * 127 + 128),
                 (int)(Math.Sin(this.bounceTimer * 5f + 4f) * 127 + 128));
 
+            // Ball body is drawn relative to pageRect top-left corner
+            Vector2 drawPos = new Vector2(pageRect.X, pageRect.Y) + this.ballPos;
+
             b.Draw(Game1.staminaRect,
-                new Rectangle((int)(this.ballPos.X + shiftX - r), (int)(this.ballPos.Y - r), r * 2, r * 2),
+                new Rectangle((int)(drawPos.X - r), (int)(drawPos.Y - r), r * 2, r * 2),
                 ball);
             b.Draw(Game1.staminaRect,
-                new Rectangle((int)(this.ballPos.X + shiftX - r / 2), (int)(this.ballPos.Y - r + 4), r / 2, r / 2),
+                new Rectangle((int)(drawPos.X - r / 2), (int)(drawPos.Y - r + 4), r / 2, r / 2),
                 Color.White * 0.4f);
         }
 

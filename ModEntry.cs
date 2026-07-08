@@ -69,6 +69,9 @@ namespace SmartphoneExampleApps
         /// </summary>
         internal static ISmartPhoneApi? Api;
 
+        private PortraitApp.PortraitAppScreen? activePortraitScreen;
+        private LandscapeApp.LandscapeAppScreen? activeLandscapeScreen;
+
         // Portrait app icon textures (one per theme)
         private Texture2D? portraitIcon_Default;
         private Texture2D? portraitIcon_Theme2;
@@ -90,11 +93,6 @@ namespace SmartphoneExampleApps
         // or you can create separate instances per app if you prefer.
         private readonly WidgetAnimationState portraitAnimation  = new();
         private readonly WidgetAnimationState landscapeAnimation = new();
-
-        // Contactable NPC tracking.
-        // We subscribe to api.ContactableNpcsChanged so this list is always current.
-        // The PortraitAppScreen reads the count via the getContactCount delegate.
-        private List<string> contactableNpcs = new();
 
         // -------------------------------------------------------------------------
         // SMAPI Entry Point
@@ -132,10 +130,6 @@ namespace SmartphoneExampleApps
             // Step 3: Register both apps.
             this.RegisterPortraitApp();
             this.RegisterLandscapeApp();
-
-            // Step 4: Subscribe to the contactable-NPC list so we always have
-            // the current count available for the Portrait app's contact action.
-            this.smartphoneApi.ContactableNpcsChanged += (npcs) => this.contactableNpcs = npcs;
 
             // Step 5: Register an example contact action card.
             // This adds an "Open App" button on every NPC's contact info screen.
@@ -236,6 +230,15 @@ namespace SmartphoneExampleApps
 
             if (!registered)
                 this.Monitor.Log("Failed to register Portrait Example app.", LogLevel.Warn);
+            else
+            {
+                this.smartphoneApi.RegisterPassiveHudCallback(
+                    ownerModId: this.ModManifest.UniqueID,
+                    appId: PortraitAppId,
+                    onDrawHudScreen: this.DrawPortraitPassiveHud,
+                    onUpdateHudScreen: this.UpdatePortraitPassiveHud
+                );
+            }
         }
 
         private void RegisterLandscapeApp()
@@ -265,6 +268,15 @@ namespace SmartphoneExampleApps
 
             if (!registered)
                 this.Monitor.Log("Failed to register Landscape Example app.", LogLevel.Warn);
+            else
+            {
+                this.smartphoneApi.RegisterPassiveHudCallback(
+                    ownerModId: this.ModManifest.UniqueID,
+                    appId: LandscapeAppId,
+                    onDrawHudScreen: this.DrawLandscapePassiveHud,
+                    onUpdateHudScreen: this.UpdateLandscapePassiveHud
+                );
+            }
         }
 
         // -------------------------------------------------------------------------
@@ -274,14 +286,13 @@ namespace SmartphoneExampleApps
         private void OpenPortraitApp()
         {
             if (!Context.IsWorldReady || this.smartphoneApi == null) return;
-
+ 
             // Open the portrait screen.
-            // getContactCount is a delegate that returns the live contactable NPC count,
-            // maintained by the ContactableNpcsChanged subscription in OnGameLaunched.
-            Game1.activeClickableMenu = new PortraitApp.PortraitAppScreen(
+            this.activePortraitScreen = new PortraitApp.PortraitAppScreen(
                 api:             this.smartphoneApi,
-                onBack:          () => this.smartphoneApi.OpenPhoneHomeScreen(),
-                getContactCount: () => this.contactableNpcs.Count);
+                onBack:          () => this.smartphoneApi.OpenPhoneHomeScreen());
+            this.activeLandscapeScreen = null;
+            Game1.activeClickableMenu = this.activePortraitScreen;
         }
 
         // -------------------------------------------------------------------------
@@ -328,10 +339,12 @@ namespace SmartphoneExampleApps
         private void OpenLandscapeApp()
         {
             if (!Context.IsWorldReady || this.smartphoneApi == null) return;
-
-            Game1.activeClickableMenu = new LandscapeApp.LandscapeAppScreen(
+ 
+            this.activeLandscapeScreen = new LandscapeApp.LandscapeAppScreen(
                 api:    this.smartphoneApi,
                 onBack: () => this.smartphoneApi.OpenPhoneHomeScreen());
+            this.activePortraitScreen = null;
+            Game1.activeClickableMenu = this.activeLandscapeScreen;
         }
 
         // -------------------------------------------------------------------------
@@ -418,6 +431,50 @@ namespace SmartphoneExampleApps
         // -------------------------------------------------------------------------
         // Utilities
         // -------------------------------------------------------------------------
+
+        private void DrawPortraitPassiveHud(SpriteBatch b, Rectangle dest)
+        {
+            if (this.activePortraitScreen != null)
+            {
+                this.activePortraitScreen.DrawScreenContent(b, dest);
+            }
+            else
+            {
+                // Fallback to drawing a simple screen if the active instance was lost
+                Texture2D? bg = this.smartphoneApi?.GetPhoneBackgroundTexture();
+                if (bg != null && !bg.IsDisposed)
+                    b.Draw(bg, dest, Color.White);
+                else
+                    b.Draw(Game1.staminaRect, dest, new Color(20, 24, 36));
+            }
+        }
+
+        private void UpdatePortraitPassiveHud(GameTime time)
+        {
+            this.activePortraitScreen?.update(time);
+        }
+
+        private void DrawLandscapePassiveHud(SpriteBatch b, Rectangle dest)
+        {
+            if (this.activeLandscapeScreen != null)
+            {
+                this.activeLandscapeScreen.DrawScreenContent(b, dest);
+            }
+            else
+            {
+                // Fallback to drawing a simple screen if the active instance was lost
+                Texture2D? bg = this.smartphoneApi?.GetPhoneBackgroundTexture();
+                if (bg != null && !bg.IsDisposed)
+                    b.Draw(bg, dest, Color.White);
+                else
+                    b.Draw(Game1.staminaRect, dest, new Color(20, 24, 36));
+            }
+        }
+
+        private void UpdateLandscapePassiveHud(GameTime time)
+        {
+            this.activeLandscapeScreen?.update(time);
+        }
 
         /// <summary>Creates a 84x84 solid-colour Texture2D as a last-resort fallback icon.</summary>
         private static Texture2D CreateSolidTexture(Color color)
