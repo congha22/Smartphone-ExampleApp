@@ -274,7 +274,8 @@ namespace SmartphoneExampleApps
                     ownerModId: this.ModManifest.UniqueID,
                     appId: LandscapeAppId,
                     onDrawHudScreen: this.DrawLandscapePassiveHud,
-                    onUpdateHudScreen: this.UpdateLandscapePassiveHud
+                    onUpdateHudScreen: this.UpdateLandscapePassiveHud,
+                    landscape: true
                 );
             }
         }

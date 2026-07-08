@@ -237,7 +237,8 @@ namespace SmartphoneExampleApps.Data
             string ownerModId,
             string appId,
             Action<SpriteBatch, Rectangle> onDrawHudScreen,
-            Action<GameTime>? onUpdateHudScreen = null
+            Action<GameTime>? onUpdateHudScreen = null,
+            bool landscape = false
         );
     }
 }

@@ -493,10 +493,11 @@ namespace SmartphoneExampleApps.LandscapeApp
             if (Math.Abs(this.phoneUiScale - 1f) > 0.001f)
             {
                 this.phoneUiScale = 1f;
+                this.RefreshLayout();
             }
 
             this.xPositionOnScreen = -this.phoneContentOffsetY;
-            this.yPositionOnScreen = this.contentHeight - this.phoneFrameWidth + this.phoneContentOffsetX;
+            this.yPositionOnScreen = -this.phoneContentOffsetX;
 
             this.RefreshLayout();
 
@@ -522,10 +523,10 @@ namespace SmartphoneExampleApps.LandscapeApp
                 }
                 else
                 {
-                    b.Draw(Game1.staminaRect, new Rectangle(lx, ly, lw, lh), new Color(20, 24, 36));
+                    b.Draw(Game1.staminaRect, lc, new Color(20, 24, 36));
                 }
 
-                // Draw pages
+                // Draw pages normally (horizontal)
                 this.DrawPages(b, lc);
             }
             finally
