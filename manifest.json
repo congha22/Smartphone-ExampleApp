@@ -1,7 +1,7 @@
 {
   "Name": "Smartphone Example Apps",
   "Author": "d5a1lamdtd",
-  "Version": "1.0.0",
+  "Version": "2.4",
   "Description": "Starter example mod showing how to register Portrait and Landscape apps on the Smartphone framework. Includes widget support, theming, scaling, scrolling, and swiping.",
   "UniqueID": "d5a1lamdtd.Smartphone-ExampleApps",
   "EntryDll": "Smartphone-ExampleApps.dll",
